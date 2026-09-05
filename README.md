@@ -60,7 +60,10 @@ python3 part2_video.py
 
 Reads `assets/PennAir 2024 App Dynamic.mp4` and processes it **frame by
 frame** (as a stream, not all at once), drawing outlines/centers on every
-frame and writing an annotated output video.
+frame and writing an annotated output video. See it in action below
+(demo recording also saved at `demo_videos/part2_video_demo.mp4`):
+
+<!-- PASTE-VIDEO-PART2-HERE -->
 
 ### Part 3 — Background-agnostic detection
 
@@ -70,7 +73,10 @@ python3 part3_hard_video.py
 
 Same idea as Part 2, but works regardless of background color/texture. Tested
 on `assets/PennAir 2024 App Dynamic Hard.mp4`; debug output for frame 0 is
-saved to `outputs_rgb_part3/`.
+saved to `outputs_rgb_part3/`. See the result on the hard video below
+(demo recording also saved at `demo_videos/part3_hard_video_demo.mp4`):
+
+<!-- PASTE-VIDEO-PART3-HERE -->
 
 ### Part 4 — 3D coordinates
 
