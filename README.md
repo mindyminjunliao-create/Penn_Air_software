@@ -5,7 +5,7 @@ challenge: shape detection on a static image (Part 1), on video (Part 2), made
 background-agnostic (Part 3), extended to 3D using a pinhole camera model
 (Part 4), and wrapped into a ROS 2 package (Part 5).
 
-- **Author:** Mindy Liao
+- **Author:** Wade
 - **Dev environment:** macOS host → Ubuntu VM (UTM) → Docker container (ROS 2 Humble)
 
 ---
@@ -20,15 +20,25 @@ background-agnostic (Part 3), extended to 3D using a pinhole camera model
 ├── part2_video.py             # Part 2: same algorithm applied frame-by-frame to video
 ├── part3_hard_video.py        # Part 3: background-agnostic version, RGB + noise based
 ├── part4_3d.py                # Part 4: adds depth (Z) / 3D coordinates
+├── src/
+│   ├── detector.py            # Core detection algorithms shared by part1-4 scripts
+│   └── utils.py
+├── assets/                    # Input test files provided by PennAir
+│   ├── PennAir 2024 App Static.png
+│   ├── PennAir 2024 App Dynamic.mp4
+│   └── PennAir 2024 App Dynamic Hard.mp4
+├── outputs_hsv/               # Part 1 result + mask debug images
+├── outputs_hsv_process/       # Part 1/3 step-by-step HSV pipeline debug images
+├── outputs_rgb_part3/         # Part 3 RGB + noise-mask debug images
+├── outputs/                   # Part 4 3D result images
 ├── pennair_vision/            # Part 5: ROS 2 package
 │   ├── pennair_vision/
-│   │   ├── detector.py            # Core detection algorithms (shared by Parts 1-4)
+│   │   ├── detector.py            # Core detection algorithms (ROS-side copy, used by Parts 1-4 logic)
 │   │   ├── camera_node.py         # Publishes video frames as a ROS 2 topic
 │   │   └── detection_node.py      # Subscribes to frames, runs detection + 3D math, publishes pose
 │   ├── launch/pennair_vision.launch.py
 │   ├── package.xml / setup.py / setup.cfg
 │   └── test/
-├── assets/                    # Result images, masks, screenshots, videos (see Part B)
 └── README.md
 ```
 
@@ -38,8 +48,9 @@ background-agnostic (Part 3), extended to 3D using a pinhole camera model
 python3 part1_static.py
 ```
 
-Reads `PennAir 2024 App Static.png`, detects the shapes, draws their outlines,
-marks their centers, and saves the annotated result to `assets/part1_result.png`.
+Reads `assets/PennAir 2024 App Static.png`, detects the shapes, draws their
+outlines, marks their centers, and saves the annotated result + debug masks
+to `outputs_hsv/`.
 
 ### Part 2 — Shape detection on video
 
@@ -47,9 +58,9 @@ marks their centers, and saves the annotated result to `assets/part1_result.png`
 python3 part2_video.py
 ```
 
-Reads `PennAir 2024 App Dynamic.mp4` and processes it **frame by frame** (as a
-stream, not all at once), drawing outlines/centers on every frame and writing
-an annotated output video.
+Reads `assets/PennAir 2024 App Dynamic.mp4` and processes it **frame by
+frame** (as a stream, not all at once), drawing outlines/centers on every
+frame and writing an annotated output video.
 
 ### Part 3 — Background-agnostic detection
 
@@ -58,7 +69,8 @@ python3 part3_hard_video.py
 ```
 
 Same idea as Part 2, but works regardless of background color/texture. Tested
-on `PennAir 2024 App Dynamic Hard.mp4`.
+on `assets/PennAir 2024 App Dynamic Hard.mp4`; debug output for frame 0 is
+saved to `outputs_rgb_part3/`.
 
 ### Part 4 — 3D coordinates
 
@@ -69,7 +81,7 @@ python3 part4_3d.py
 Takes the Part 3 output, uses the known reference circle (radius = 10 in) plus
 the given camera intrinsic matrix to compute depth Z and the 3D (X, Y, Z) of
 every detected object's center, using the circle's pixel size as the depth
-reference.
+reference. Result saved to `outputs/part4_3d_result.png`.
 
 ### Part 5 — ROS 2 integration
 
@@ -111,7 +123,7 @@ reference.
 - **First attempt: plain grayscale threshold.** The lighting/contrast between
   the shapes and the grass background wasn't consistent enough — some
   shapes blended into the background and were missed or mis-detected.
-  (See `assets/part1_grayscale_fail_1.png`, `assets/part1_grayscale_fail_2.png`.)
+  ![Early grayscale-based result](outputs_hsv/part1_result.png)
 - **Second attempt: hand-picked HSV range on a `hsv` branch.** Worked better,
   but broke down whenever a shape's color was close to the background's.
 - **Fix, with help from office hours:** used an interactive HSV-filter tool to
@@ -123,15 +135,22 @@ reference.
   **shapes** become the white foreground blobs that `RETR_EXTERNAL` picks up
   (see "My Notes for You" below for the full reasoning on this).
 - **Cleanup:** the initial mask was still noisy (small speckles from grass
-  texture), which threw off the centroid calculation. Morphological cleanup
-  (open/close, see below) plus a minimum-contour-area filter removed the
-  noise and gave clean, stable outlines and centers.
+  texture), which threw off the centroid calculation. The two images below
+  show the mask before and after cleanup:
+
+  | Mask before cleanup (noisy) | Mask after cleanup (clean contour) |
+  |---|---|
+  | ![Raw noisy mask](outputs_hsv/part1_result_mask.png) | ![Cleaned mask](outputs_hsv/part1_result_mask_2.png) |
+
+  Morphological cleanup (open/close, see below) plus a minimum-contour-area
+  filter removed the noise and gave clean, stable outlines and centers.
 
 ### Part 3 — background-agnostic detection (RGB + noise, not HSV)
 
 Reusing the Part 1/2 HSV approach failed on the harder video for two reasons:
 1. Gradient-shaded shapes sometimes got split into two separate blobs where
-   the gradient crossed a hue boundary.
+   the gradient crossed a hue boundary:
+   ![HSV approach splits a gradient shape into two detections](outputs_hsv_process/4_final_overlay.png)
 2. A fixed HSV range obviously can't generalize to an *arbitrary* background —
    hand-tuning a mask from a website isn't a real solution if the background
    color is unknown ahead of time.
@@ -142,14 +161,21 @@ New approach, on a `rgb_strategy` branch:
   algorithm work with *any* background, not just the black one in the test
   video.
 - **Color mask:** per-pixel Euclidean distance from that background RGB;
-  anything far enough away is foreground.
+  anything far enough away is foreground. The image below is the best color
+  mask I was able to get on frame 0 after tuning the morphological kernel
+  size to `(3, 3)` — beyond this point, further kernel tuning stopped making
+  a difference, which is a limitation of the current approach that I'd want
+  to revisit:
+  ![Best achievable color mask, kernel (3,3)](outputs_rgb_part3/frame0_1_color_mask.png)
 - **Noise mask:** compare each pixel's local high-frequency noise level
   against the background's noise profile — a shape with a *different* texture
   frequency than the background gets flagged as foreground even when its
   color is close to the background color, and this also helps stop a single
   gradient shape from being split into two.
 - **Combine + clean:** the color mask and noise mask are OR'd together, then
-  cleaned with morphological open/close before finding contours.
+  cleaned with morphological open/close before finding contours. This is the
+  best result I was able to achieve on frame 0 with this approach:
+  ![Best final outline/center result on frame 0](outputs_rgb_part3/frame0_4_result.png)
 - **Known remaining issues (flagged for future work):** the outlines aren't
   perfectly tight to the object boundary, background noise isn't 100%
   eliminated, and two overlapping objects aren't yet separated correctly.
