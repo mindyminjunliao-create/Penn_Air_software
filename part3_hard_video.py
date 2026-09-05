@@ -1,10 +1,11 @@
 import os
+import pickle
 import cv2
 import numpy as np
 from src.detector import detect_objects_rgb_and_noise  # Import the existing detection function
 
 # Directory where per-frame process images will be saved
-SAVE_DIR = "outputs_hsv_part3"
+SAVE_DIR = "outputs_rgb_part3"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 # Load the target video file
@@ -42,7 +43,7 @@ while cap.isOpened():
         break  # End of video stream
 
     # Run background-agnostic detection on the current frame
-    processed_frame, centers, clustered_mask, color_mask, noise_mask = detect_objects_rgb_and_noise(
+    processed_frame, centers, shape_contours, clustered_mask, color_mask, noise_mask = detect_objects_rgb_and_noise(
         frame, bg_bgr=bg_bgr, bg_noise_std_mean=bg_noise_std_mean
     )
 
@@ -54,6 +55,17 @@ while cap.isOpened():
         cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_2_noise_mask.png"), noise_mask)
         cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_3_clustered_mask.png"), clustered_mask)
         cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_4_result.png"), processed_frame)
+
+        # Persist the detected centers + their contours so part4_3d.py can later
+        # take a manually-typed (x, y) from this frame's saved image, look up
+        # which detected shape it belongs to, and measure its pixel radius.
+        frame0_shapes = {"centers": centers, "contours": shape_contours}
+        with open(os.path.join(SAVE_DIR, f"{prefix}_shapes.pkl"), "wb") as f:
+            pickle.dump(frame0_shapes, f)
+        print(f"[Part 3] Saved {len(centers)} frame-0 shape(s) to "
+              f"{os.path.join(SAVE_DIR, prefix + '_shapes.pkl')}")
+        for i, c in enumerate(centers):
+            print(f"    shape {i}: center={c}")
 
     frame_idx += 1
 

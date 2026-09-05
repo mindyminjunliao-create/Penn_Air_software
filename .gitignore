@@ -1,0 +1,7 @@
+pennair_vision/build/
+pennair_vision/install/
+pennair_vision/log/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
