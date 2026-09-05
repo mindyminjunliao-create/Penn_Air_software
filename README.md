@@ -5,7 +5,7 @@ challenge: shape detection on a static image (Part 1), on video (Part 2), made
 background-agnostic (Part 3), extended to 3D using a pinhole camera model
 (Part 4), and wrapped into a ROS 2 package (Part 5).
 
-- **Author:** Wade
+- **Author:** Mindy
 - **Dev environment:** macOS host → Ubuntu VM (UTM) → Docker container (ROS 2 Humble)
 
 ---
