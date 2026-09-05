@@ -63,7 +63,8 @@ frame** (as a stream, not all at once), drawing outlines/centers on every
 frame and writing an annotated output video. See it in action below
 (demo recording also saved at `demo_videos/part2_video_demo.mp4`):
 
-<!-- PASTE-VIDEO-PART2-HERE -->
+
+https://github.com/user-attachments/assets/f8aced29-44c7-43ea-9d74-3595fb826997
 
 ### Part 3 — Background-agnostic detection
 
@@ -76,7 +77,7 @@ on `assets/PennAir 2024 App Dynamic Hard.mp4`; debug output for frame 0 is
 saved to `outputs_rgb_part3/`. See the result on the hard video below
 (demo recording also saved at `demo_videos/part3_hard_video_demo.mp4`):
 
-<!-- PASTE-VIDEO-PART3-HERE -->
+https://github.com/user-attachments/assets/b1c32a32-a691-41c7-867c-0faed6bb084e
 
 ### Part 4 — 3D coordinates
 
