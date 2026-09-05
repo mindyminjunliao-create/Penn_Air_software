@@ -241,3 +241,78 @@ pixel coordinates into (X, Y, Z) in camera-frame coordinates.
 - Contour edges aren't perfectly tight to object boundaries under heavy noise.
 - Detection could be made more efficient for true real-time use (e.g.
   avoiding recomputation of the noise mask over the whole frame every frame).
+
+### Part 6 — An idea I considered but haven't implemented: persistent homology for overlap handling
+
+**Status: this is an idea I looked into conceptually, not something I've
+implemented or tested for this project — I'm including it here to be
+transparent about where my thinking is, not to claim results I don't have.**
+My familiarity with the tool itself comes from a previous, unrelated project
+where I used persistent homology to explore the topological structure of the
+photon ring around a black hole — I haven't yet applied it to a real-time
+object-detection pipeline like this one, which is a different enough setting
+(static topological structure vs. frame-by-frame video) that I'd expect new
+problems to show up, as outlined below.
+
+The current Part 3 pipeline treats each frame's foreground mask as an
+independent set of blobs: `findContours` gives you back whatever connected
+components exist *in that single frame*, with no memory of what happened a
+moment earlier. That's exactly why two overlapping objects merge into one
+blob and get reported as a single detection — the algorithm has no concept
+of "this blob used to be two things."
+
+**What persistent homology is:** it's a tool from algebraic topology that
+tracks how the topological features of a shape (mainly: the number of
+separate connected pieces, called the 0th Betti number, and the number of
+loops/holes, the 1st Betti number) appear and disappear as you gradually
+change a threshold — this sequence of threshold levels is called a
+*filtration*. Instead of looking at the mask at one fixed threshold, you
+look at it across a whole range of thresholds and record, for every
+topological feature, the threshold at which it is "born" and the threshold
+at which it "dies" (merges with another feature or disappears). Plotting
+these birth/death pairs gives a *persistence diagram*: features with a long
+birth-death gap ("high persistence") are considered real structure, while
+short-lived ones are treated as noise.
+
+**Why I think it's relevant here:** if you build a filtration out of the
+Part 3 distance-transform of the foreground mask (i.e., grow the mask
+outward from its local peaks, the way `cv2.watershed` seeding does), two
+overlapping objects would show up as **two separate connected components
+that exist for a range of thresholds before merging into one** — persistent
+homology would let me detect that merge event and recover the fact that
+there were two distinct objects, even after they've become one connected
+blob in the final binary mask. In principle this could give a more
+principled alternative to just running a watershed split after the fact,
+because the persistence diagram itself tells you *how confident* to be that
+two components should really be treated as separate (via how persistent
+each one is), rather than just guessing a peak-count.
+
+**Problems I anticipate running into, if I were to actually build this**
+(again — these are predictions based on how the math and the tooling work,
+not things I've hit in practice):
+- **Cost:** computing persistent homology (e.g. with libraries like GUDHI or
+  Ripser) is significantly more expensive than a single `findContours` call,
+  and Part 2/3 are supposed to process video frame-by-frame — this would
+  likely need to run at a lower rate than every frame, or on a
+  downsampled/cropped region only, to stay usable.
+- **Choosing what to filter on:** the result depends heavily on whether the
+  filtration is built from the raw mask, a distance transform, or grayscale
+  intensity — a poor choice would likely surface topological "features" that
+  are really just noise texture rather than real object boundaries, which is
+  the same noise problem Part 3 already struggles with, just moved into a
+  different math framework.
+- **Getting back to pixels:** a persistence diagram tells you *how many*
+  components existed and *when* they merged, but it doesn't directly hand
+  you a pixel mask for "object A" vs. "object B" — I'd likely need to pair
+  it with something like a seeded watershed at the pre-merge threshold to
+  turn the topological answer back into an actual segmentation, which is an
+  extra non-trivial step on top of the topology itself.
+- **Tooling mismatch:** most persistent-homology libraries are built around
+  point clouds / simplicial complexes rather than 2D image masks directly;
+  I'd need to go through a cubical-complex representation (which some
+  libraries, like GUDHI, do support) rather than the point-cloud APIs most
+  tutorials use.
+
+If I get time to actually try this, I'd want to prototype it on a single
+static frame with two known overlapping shapes first, before trying to make
+it work frame-by-frame on video.
