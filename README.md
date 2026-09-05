@@ -79,6 +79,10 @@ saved to `outputs_rgb_part3/`. See the result on the hard video below
 
 https://github.com/user-attachments/assets/b1c32a32-a691-41c7-867c-0faed6bb084e
 
+After using the small_area filter, raising the min_area parameter from 400 to 1200, some background noises are erased, though not completely, as seen bellow:
+
+
+https://github.com/user-attachments/assets/3440a3f8-aeb3-482a-b95e-b6a53ff2d6df
 
 ### Part 4 — 3D coordinates
 
