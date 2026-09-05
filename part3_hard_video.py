@@ -1,6 +1,11 @@
+import os
 import cv2
 import numpy as np
 from src.detector import detect_objects_rgb_and_noise  # Import the existing detection function
+
+# Directory where per-frame process images will be saved
+SAVE_DIR = "outputs_hsv_part3"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # Load the target video file
 cap = cv2.VideoCapture("assets/PennAir 2024 App Dynamic Hard.mp4")
@@ -29,6 +34,8 @@ bg_noise_std_mean = extract_noise_pattern(first_gray)
 # Rewind so the first frame still gets processed in the main loop below
 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
+frame_idx = 0
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -38,6 +45,17 @@ while cap.isOpened():
     processed_frame, centers, clustered_mask, color_mask, noise_mask = detect_objects_rgb_and_noise(
         frame, bg_bgr=bg_bgr, bg_noise_std_mean=bg_noise_std_mean
     )
+
+    # Only save the process images for the very first frame (frame 0)
+    if frame_idx == 0:
+        prefix = "frame0"
+        cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_0_original.png"), frame)
+        cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_1_color_mask.png"), color_mask)
+        cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_2_noise_mask.png"), noise_mask)
+        cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_3_clustered_mask.png"), clustered_mask)
+        cv2.imwrite(os.path.join(SAVE_DIR, f"{prefix}_4_result.png"), processed_frame)
+
+    frame_idx += 1
 
     # Display the processed frame with detection overlays
     cv2.imshow("Part 3 - Background Agnostic Video Detection", processed_frame)

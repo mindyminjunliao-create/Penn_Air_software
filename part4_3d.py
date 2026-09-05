@@ -1,56 +1,42 @@
 import cv2
 import numpy as np
-from src.detector import detect_shapes_in_frame
 
-# Camera Intrinsic Matrix K from prompt
+# Define camera intrinsic matrix K provided in the challenge
+# K = [[fx,  0, cx],
+#      [ 0, fy, cy],
+#      [ 0,  0,  1]]
 K = np.array([
-    [2564.3186869, 0.0, 0.0],
-    [0.0, 2569.70273111, 0.0],
-    [0.0, 0.0, 1.0]
-])
+    [2564.3186869, 0, 0],
+    [0, 2569.70273111, 0],
+    [0, 0, 1]
+], dtype=np.float64)
 
+# Extract focal lengths from the intrinsic matrix
 fx = K[0, 0]
 fy = K[1, 1]
-cx = K[0, 2]
-cy = K[1, 2]
 
-# Physical known size (inches)
-R_REAL = 10.0  # circle radius in inches
+# Known physical dimensions (in inches)
+REAL_RADIUS_INCHES = 10.0
 
-img = cv2.imread("assets/PennAir 2024 App Static.png")
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-edges = cv2.Canny(blurred, 50, 150)
+# Example inputs: Detected circle center (u_pixel, v_pixel) and its radius in pixels
+# Replace these values with the output from your 2D shape detector
+u_pixel = 1280.0  # Center X coordinate in pixel space
+v_pixel = 720.0   # Center Y coordinate in pixel space
+r_pixel = 50.0    # Detected radius of the circle in pixels
 
-contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-output_img = img.copy()
+# Step 1: Calculate depth (Z coordinate) using pinhole camera model
+# Formula: Depth (Z) = (focal_length * real_world_radius) / pixel_radius
+# Using the average focal length (fx + fy) / 2 for balanced scaling
+f_avg = (fx + fy) / 2.0
+depth_z = (f_avg * REAL_RADIUS_INCHES) / r_pixel
 
-for cnt in contours:
-    if cv2.contourArea(cnt) < 150:
-        continue
+# Step 2: Compute 3D coordinates (X, Y) relative to the camera
+# Formula: X = (u * Z) / fx,  Y = (v * Z) / fy  (since cx=0, cy=0 in this matrix)
+x_3d = (u_pixel * depth_z) / fx
+y_3d = (v_pixel * depth_z) / fy
 
-    # Fit minimum enclosing circle to estimate pixel radius
-    (u, v), r_pixel = cv2.minEnclosingCircle(cnt)
-    
-    if r_pixel > 0:
-        # 1. Calculate Depth (Z) using average focal length and known radius
-        f_avg = (fx + fy) / 2.0
-        Z = (f_avg * R_REAL) / r_pixel  # Depth in inches
-
-        # 2. Map 2D pixel coordinates (u, v) to 3D camera coordinates (X, Y, Z)
-        X = (u - cx) * Z / fx
-        Y = (v - cy) * Z / fy
-
-        # 3. Draw onto image
-        center_pt = (int(u), int(v))
-        cv2.circle(output_img, center_pt, 4, (0, 0, 255), -1)
-        
-        label = f"X:{X:.1f}in Y:{Y:.1f}in Z:{Z:.1f}in"
-        cv2.putText(
-            output_img, label, (int(u) - 40, int(v) - 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1
-        )
-        
-        print(f"Detected Shape at Pixel ({u:.1f}, {v:.1f}) -> 3D Camera Frame: X={X:.2f}\", Y={Y:.2f}\", Z={Z:.2f}\"")
-
-cv2.imwrite("outputs/part4_3d_result.png", output_img)
+# Step 3: Output the resulting 3D coordinates (X, Y, Z) in inches
+print(f"Detected Center 3D Coordinates (w.r.t. camera):")
+print(f"X: {x_3d:.2f} in")
+print(f"Y: {y_3d:.2f} in")
+print(f"Z (Depth): {depth_z:.2f} in")
