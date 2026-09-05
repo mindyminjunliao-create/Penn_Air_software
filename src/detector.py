@@ -114,7 +114,7 @@ def detect_objects_rgb_and_noise(
     centers = []
     shape_contours = []  # Parallel list to `centers`: the hull contour for each detected shape
     h, w = frame.shape[:2]
-    min_area = 400
+    min_area = 1400
     max_area = (h * w) * 0.7  # Exclude full-frame contours to prevent over-segmentation
 
     for cnt in contours:
