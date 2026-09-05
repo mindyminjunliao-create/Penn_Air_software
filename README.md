@@ -63,8 +63,8 @@ frame** (as a stream, not all at once), drawing outlines/centers on every
 frame and writing an annotated output video. See it in action below
 (demo recording also saved at `demo_videos/part2_video_demo.mp4`):
 
-
 https://github.com/user-attachments/assets/f8aced29-44c7-43ea-9d74-3595fb826997
+
 
 ### Part 3 — Background-agnostic detection
 
@@ -78,6 +78,7 @@ saved to `outputs_rgb_part3/`. See the result on the hard video below
 (demo recording also saved at `demo_videos/part3_hard_video_demo.mp4`):
 
 https://github.com/user-attachments/assets/b1c32a32-a691-41c7-867c-0faed6bb084e
+
 
 ### Part 4 — 3D coordinates
 
@@ -139,8 +140,7 @@ reference. Result saved to `outputs/part4_3d_result.png`.
 - **Contour extraction:** `cv2.inRange()` was tuned to match the *background*,
   so the raw mask is white where the background is and black where the shapes
   are. The mask is inverted (`cv2.bitwise_not`) before `findContours`, so the
-  **shapes** become the white foreground blobs that `RETR_EXTERNAL` picks up
-  (see "My Notes for You" below for the full reasoning on this).
+  **shapes** become the white foreground blobs that `RETR_EXTERNAL` picks up.
 - **Cleanup:** the initial mask was still noisy (small speckles from grass
   texture), which threw off the centroid calculation. The two images below
   show the mask before and after cleanup:
@@ -186,6 +186,15 @@ New approach, on a `rgb_strategy` branch:
 - **Known remaining issues (flagged for future work):** the outlines aren't
   perfectly tight to the object boundary, background noise isn't 100%
   eliminated, and two overlapping objects aren't yet separated correctly.
+- **Follow-up fix:** even after morphological cleanup, some small background
+  noise specks survived `MORPH_CLOSE` and grew just large enough to pass the
+  old `min_area = 400` contour-area filter. Raised `min_area` to a tunable
+  function parameter and set it to `1200` for this video, which removed most
+  of the small false-positive contours. This only helps with noise that's
+  smaller than real objects, though — noise blobs that happen to be similar
+  in size to an actual object still pass the filter and can't be
+  distinguished by area alone, which is why background noise isn't 100%
+  eliminated yet.
 
 ### Part 4 — making it 3D
 
