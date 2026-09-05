@@ -291,32 +291,6 @@ because the persistence diagram itself tells you *how confident* to be that
 two components should really be treated as separate (via how persistent
 each one is), rather than just guessing a peak-count.
 
-**Problems I anticipate running into, if I were to actually build this**
-(again — these are predictions based on how the math and the tooling work,
-not things I've hit in practice):
-- **Cost:** computing persistent homology (e.g. with libraries like GUDHI or
-  Ripser) is significantly more expensive than a single `findContours` call,
-  and Part 2/3 are supposed to process video frame-by-frame — this would
-  likely need to run at a lower rate than every frame, or on a
-  downsampled/cropped region only, to stay usable.
-- **Choosing what to filter on:** the result depends heavily on whether the
-  filtration is built from the raw mask, a distance transform, or grayscale
-  intensity — a poor choice would likely surface topological "features" that
-  are really just noise texture rather than real object boundaries, which is
-  the same noise problem Part 3 already struggles with, just moved into a
-  different math framework.
-- **Getting back to pixels:** a persistence diagram tells you *how many*
-  components existed and *when* they merged, but it doesn't directly hand
-  you a pixel mask for "object A" vs. "object B" — I'd likely need to pair
-  it with something like a seeded watershed at the pre-merge threshold to
-  turn the topological answer back into an actual segmentation, which is an
-  extra non-trivial step on top of the topology itself.
-- **Tooling mismatch:** most persistent-homology libraries are built around
-  point clouds / simplicial complexes rather than 2D image masks directly;
-  I'd need to go through a cubical-complex representation (which some
-  libraries, like GUDHI, do support) rather than the point-cloud APIs most
-  tutorials use.
-
 If I get time to actually try this, I'd want to prototype it on a single
 static frame with two known overlapping shapes first, before trying to make
 it work frame-by-frame on video.
