@@ -2,6 +2,53 @@ import os
 import cv2
 import numpy as np
 
+
+def sample_background_bgr(frame, patch_size=20, corners_only=True):
+    """
+    Automatically estimate the background BGR color from a frame, instead of
+    hardcoding it. Samples small patches from the four corners of the frame
+    (assumed to be background, not the object of interest) and returns the
+    per-channel median as the background color estimate.
+
+    Args:
+        frame: BGR image (H, W, 3), e.g. the first frame of the video.
+        patch_size: side length (in pixels) of each corner sample patch.
+        corners_only: if True, only sample the 4 corners (safe default when
+            you don't know where objects will appear). If False, also
+            includes a border strip around the whole frame for a larger,
+            more robust sample.
+
+    Returns:
+        np.ndarray of shape (3,), dtype float32 — the estimated background
+        color in BGR order, ready to pass into detect_objects_rgb_and_noise.
+    """
+    h, w = frame.shape[:2]
+    ps = min(patch_size, h // 4, w // 4)
+    if ps < 1:
+        ps = 1
+
+    patches = [
+        frame[0:ps, 0:ps],              # top-left
+        frame[0:ps, w - ps:w],          # top-right
+        frame[h - ps:h, 0:ps],          # bottom-left
+        frame[h - ps:h, w - ps:w],      # bottom-right
+    ]
+
+    if not corners_only:
+        # Add thin strips along all 4 edges for a bigger, more robust sample
+        patches.append(frame[0:ps, :])
+        patches.append(frame[h - ps:h, :])
+        patches.append(frame[:, 0:ps])
+        patches.append(frame[:, w - ps:w])
+
+    pixels = np.concatenate([p.reshape(-1, 3) for p in patches], axis=0)
+
+    # Median is more robust to outlier pixels (e.g. a shape edge sneaking
+    # into a corner patch) than a plain mean would be.
+    bg_bgr = np.median(pixels, axis=0).astype(np.float32)
+    return bg_bgr
+
+
 def detect_shapes_with_grayscale_mask(frame, lower_hsv, upper_hsv, save_dir="outputs_hsv_process"):
     os.makedirs(save_dir, exist_ok=True)
 

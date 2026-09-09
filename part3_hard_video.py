@@ -2,7 +2,7 @@ import os
 import pickle
 import cv2
 import numpy as np
-from src.detector import detect_objects_rgb_and_noise  # Import the existing detection function
+from src.detector import detect_objects_rgb_and_noise, sample_background_bgr  # Import both functions
 
 # Directory where per-frame process images will be saved
 SAVE_DIR = "outputs_rgb_part3"
@@ -10,9 +10,6 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 # Load the target video file
 cap = cv2.VideoCapture("assets/PennAir 2024 App Dynamic Hard.mp4")
-
-# Define the baseline background color in BGR format
-bg_bgr = np.array([37.7, 37.7, 37.7], dtype=np.float32)
 
 
 def extract_noise_pattern(gray_img, ksize=5):
@@ -24,10 +21,18 @@ def extract_noise_pattern(gray_img, ksize=5):
     return np.sqrt(np.maximum(noise_std, 0))
 
 
-# Grab the first frame to estimate the background's noise pattern
+# Grab the first frame to estimate the background's color AND noise pattern
 ret, first_frame = cap.read()
 if not ret:
     raise RuntimeError("Could not read the first frame from the video file.")
+
+# --- CHANGED: bg_bgr is now sampled automatically instead of hardcoded ---
+# Assumes the object(s) don't touch the frame's four corners on frame 0.
+# If that assumption doesn't hold for a given video, corners_only=False
+# switches to sampling thin border strips on all 4 edges instead, which is
+# more robust as long as the object doesn't touch the frame edges.
+bg_bgr = sample_background_bgr(first_frame, patch_size=20, corners_only=True)
+print(f"[Part 3] Auto-sampled background BGR: {bg_bgr}")
 
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 bg_noise_std_mean = extract_noise_pattern(first_gray)
